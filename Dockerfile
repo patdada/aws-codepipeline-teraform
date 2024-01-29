@@ -1,49 +1,39 @@
-FROM --platform=linux/amd64 public.ecr.aws/ubuntu/ubuntu:22.04
+# Stage 1: Download and install tools for amd64
+FROM ubuntu:22.04 AS amd64
+WORKDIR /tmp
+RUN apt-get update -y && \
+    apt-get install -y unzip wget curl jq vim git python3 python3-pip
 
+# Install terraform for amd64
+RUN wget https://releases.hashicorp.com/terraform/1.4.4/terraform_1.4.4_linux_amd64.zip && \
+    unzip terraform_1.4.4_linux_amd64.zip && \
+    mv terraform /usr/local/bin/
 
-RUN \
-# Update
-apt-get update -y && \
-# Install Unzip
-apt-get install unzip -y && \
-# need wget
-apt-get install wget -y && \
-# vim
-apt-get install vim -y && \
-# git
-apt-get install git -y && \
-# curl
-apt-get -y install curl && \
-## jq
-apt-get -y install jq && \
-# python3
-apt-get install python3 -y && \
-# python3-pip
-apt-get install python3-pip -y
-
-# update python3
-RUN python3 -m pip install --upgrade pip
-
-# install terraform 1.4.4
-RUN wget https://releases.hashicorp.com/terraform/1.4.4/terraform_1.4.4_linux_amd64.zip
-RUN unzip terraform_1.4.4_linux_amd64.zip
-RUN mv terraform /usr/local/bin/
-
-# install TFLINT
+# Install TFLINT for amd64
 RUN curl -L "$(curl -s https://api.github.com/repos/terraform-linters/tflint/releases/latest | grep -o -E -m 1 "https://.+?_linux_amd64.zip")" > tflint.zip && \
-unzip tflint.zip && \
-rm tflint.zip
-RUN mv tflint /usr/bin/
+    unzip tflint.zip && \
+    rm tflint.zip && \
+    mv tflint /usr/bin/
 
-# install checkov
+# Install checkov for amd64
 RUN pip3 install --no-cache-dir checkov
 
-# install TFSEC
+# Install TFSEC for amd64
 RUN curl -L "$(curl -s https://api.github.com/repos/aquasecurity/tfsec/releases/latest | grep -o -E -m 1 "https://.+?tfsec-linux-amd64")" > tfsec && \
-chmod +x tfsec
-RUN mv tfsec /usr/bin/
+    chmod +x tfsec && \
+    mv tfsec /usr/bin/
 
-# install OPA
-RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.52.0/opa_linux_amd64_static
-RUN chmod 755 ./opa
-RUN mv opa /usr/bin/
+# Install OPA for amd64
+RUN curl -L -o opa https://openpolicyagent.org/downloads/v0.52.0/opa_linux_amd64_static && \
+    chmod 755 ./opa && \
+    mv opa /usr/bin/
+
+# Stage 2: Create the final multi-platform image
+FROM --platform=linux/amd64,linux/arm64 ubuntu:22.04
+
+# Copy tools from the amd64 stage
+COPY --from=amd64 /usr/local/bin/terraform /usr/local/bin/
+COPY --from=amd64 /usr/bin/tflint /usr/bin/
+COPY --from=amd64 /usr/bin/checkov /usr/bin/
+COPY --from=amd64 /usr/bin/tfsec /usr/bin/
+COPY --from=amd64 /usr/bin/opa /usr/bin/
