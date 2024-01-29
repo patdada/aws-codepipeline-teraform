@@ -5,7 +5,7 @@
 terraform {
   backend "s3" {
     bucket = "terraform-state-storage20231207201209834200000002" 
-    region = "eu-west-2"
+    region = "us-east-1"
     key    = "global/s3/terraform.tfstate"
     dynamodb_table = "terraform-state-storage"
     encrypt        = true
